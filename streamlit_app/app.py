@@ -33,8 +33,9 @@ if st.session_state.get("refresh", True):
     if data.empty:
         st.warning("未拉取到数据，请稍后再试或检查 ticker 可用性。")
     else:
-        latest = data.iloc[-1]
-        st.metric("最新收盘价", f"{latest['close']:.2f}")
+        close_series = data["close"]
+        close_value = float(close_series.iloc[-1])
+        st.metric("最新收盘价", f"{close_value:.2f}")
         st.line_chart(data["close"])
         st.dataframe(data.tail(20), use_container_width=True)
 

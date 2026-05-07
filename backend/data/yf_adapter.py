@@ -25,11 +25,15 @@ SYMBOLS: Dict[str, CommoditySymbol] = {
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     if isinstance(df.columns, pd.MultiIndex):
-        # For single ticker downloads, first level is OHLCV and second level is ticker.
-        # Keep first level so downstream access is stable (close/open/high/low/volume).
-        df.columns = [str(col[0]).lower() for col in df.columns]
+        first_level = [str(col[0]).lower() for col in df.columns]
+        if "close" not in first_level and len(df.columns[0]) > 1:
+            first_level = [str(col[1]).lower() for col in df.columns]
+        df.columns = first_level
     else:
         df.columns = [str(col).lower() for col in df.columns]
+
+    # Some yfinance responses can produce duplicate labels after flattening.
+    df = df.loc[:, ~pd.Index(df.columns).duplicated(keep="first")]
     return df
 
 
