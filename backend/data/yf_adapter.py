@@ -23,14 +23,32 @@ SYMBOLS: Dict[str, CommoditySymbol] = {
 }
 
 
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if isinstance(df.columns, pd.MultiIndex):
+        # For single ticker downloads, first level is OHLCV and second level is ticker.
+        # Keep first level so downstream access is stable (close/open/high/low/volume).
+        df.columns = [str(col[0]).lower() for col in df.columns]
+    else:
+        df.columns = [str(col).lower() for col in df.columns]
+    return df
+
+
 def fetch_history(symbol_name: str, period: str = "6mo", interval: str = "1d") -> pd.DataFrame:
     symbol = SYMBOLS[symbol_name]
     df = yf.download(symbol.ticker, period=period, interval=interval, auto_adjust=False, progress=False)
     if df.empty:
         return pd.DataFrame()
 
-    df = df.rename(columns=str.lower)
+    df = _normalize_columns(df)
+    if "close" not in df.columns:
+        return pd.DataFrame()
+
     df.index = pd.to_datetime(df.index)
+    df["close"] = pd.to_numeric(df["close"], errors="coerce")
+    df = df.dropna(subset=["close"])
+    if df.empty:
+        return pd.DataFrame()
+
     df["symbol"] = symbol.code
     df["source"] = "yfinance"
     df["ingested_at"] = datetime.now(timezone.utc)
