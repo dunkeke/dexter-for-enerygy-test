@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 # Ensure repository root is importable when Streamlit runs from streamlit_app/
@@ -12,6 +13,24 @@ if str(REPO_ROOT) not in sys.path:
 
 from backend.agent.energy_agent import build_energy_commentary
 from backend.data.yf_adapter import SYMBOLS, fetch_history, latest_snapshot
+
+
+def extract_latest_close(data: pd.DataFrame) -> float | None:
+    close_data = data.get("close")
+    if close_data is None:
+        return None
+
+    if isinstance(close_data, pd.DataFrame):
+        last_row = close_data.iloc[-1].dropna()
+        if last_row.empty:
+            return None
+        return float(last_row.iloc[0])
+
+    close_series = pd.to_numeric(close_data, errors="coerce").dropna()
+    if close_series.empty:
+        return None
+    return float(close_series.iloc[-1])
+
 
 st.set_page_config(page_title="Energy Trading Agent PoC", layout="wide")
 st.title("Energy Trading Agent (PoC)")
@@ -33,9 +52,11 @@ if st.session_state.get("refresh", True):
     if data.empty:
         st.warning("未拉取到数据，请稍后再试或检查 ticker 可用性。")
     else:
-        close_series = data["close"]
-        close_value = float(close_series.iloc[-1])
-        st.metric("最新收盘价", f"{close_value:.2f}")
+        close_value = extract_latest_close(data)
+        if close_value is None:
+            st.warning("无法解析最新收盘价。")
+        else:
+            st.metric("最新收盘价", f"{close_value:.2f}")
         st.line_chart(data["close"])
         st.dataframe(data.tail(20), use_container_width=True)
 
