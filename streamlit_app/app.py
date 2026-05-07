@@ -1,6 +1,14 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+# Ensure repository root is importable when Streamlit runs from streamlit_app/
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from backend.agent.energy_agent import build_energy_commentary
 from backend.data.yf_adapter import SYMBOLS, fetch_history, latest_snapshot
