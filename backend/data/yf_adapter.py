@@ -32,7 +32,6 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df.columns = [str(col).lower() for col in df.columns]
 
-    # Some yfinance responses can produce duplicate labels after flattening.
     df = df.loc[:, ~pd.Index(df.columns).duplicated(keep="first")]
     return df
 
@@ -44,7 +43,7 @@ def fetch_history(symbol_name: str, period: str = "6mo", interval: str = "1d") -
         return pd.DataFrame()
 
     df = _normalize_columns(raw)
-    if "close" not in df.columns:
+    if not isinstance(df.columns, pd.Index) or "close" not in set(df.columns):
         return pd.DataFrame()
 
     df.index = pd.to_datetime(df.index)
@@ -61,13 +60,18 @@ def fetch_history(symbol_name: str, period: str = "6mo", interval: str = "1d") -
 
 def latest_snapshot(symbol_name: str) -> dict:
     df = fetch_history(symbol_name, period="5d", interval="1d")
-    if df.empty:
+    if not isinstance(df, pd.DataFrame) or df.empty:
         return {"symbol": symbol_name, "status": "no_data"}
 
-    last = df.iloc[-1]
-    prev = df.iloc[-2] if len(df) > 1 else last
-    close = float(last["close"])
-    prev_close = float(prev["close"])
+    if "close" not in df.columns:
+        return {"symbol": symbol_name, "status": "no_data"}
+
+    close_values = pd.to_numeric(df["close"], errors="coerce").dropna()
+    if close_values.empty:
+        return {"symbol": symbol_name, "status": "no_data"}
+
+    close = float(close_values.iloc[-1])
+    prev_close = float(close_values.iloc[-2]) if len(close_values) > 1 else close
     change = close - prev_close
     pct = (change / prev_close * 100) if prev_close else 0.0
     return {
@@ -75,6 +79,6 @@ def latest_snapshot(symbol_name: str) -> dict:
         "close": close,
         "change": change,
         "change_pct": pct,
-        "timestamp": str(df.index[-1]),
+        "timestamp": str(close_values.index[-1]),
         "status": "ok",
     }
