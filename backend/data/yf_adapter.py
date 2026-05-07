@@ -39,11 +39,11 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def fetch_history(symbol_name: str, period: str = "6mo", interval: str = "1d") -> pd.DataFrame:
     symbol = SYMBOLS[symbol_name]
-    df = yf.download(symbol.ticker, period=period, interval=interval, auto_adjust=False, progress=False)
-    if df.empty:
+    raw = yf.download(symbol.ticker, period=period, interval=interval, auto_adjust=False, progress=False)
+    if not isinstance(raw, pd.DataFrame) or raw.empty:
         return pd.DataFrame()
 
-    df = _normalize_columns(df)
+    df = _normalize_columns(raw)
     if "close" not in df.columns:
         return pd.DataFrame()
 
