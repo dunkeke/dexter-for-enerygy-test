@@ -15,6 +15,18 @@ from backend.agent.energy_agent import build_energy_commentary
 from backend.data.yf_adapter import SYMBOLS, fetch_history, latest_snapshot
 
 
+
+
+def safe_latest_snapshot(symbol_name: str) -> dict:
+    try:
+        snapshot = latest_snapshot(symbol_name)
+    except Exception:
+        return {"symbol": symbol_name, "status": "no_data"}
+
+    if not isinstance(snapshot, dict):
+        return {"symbol": symbol_name, "status": "no_data"}
+    return snapshot
+
 def extract_latest_close(data: pd.DataFrame) -> float | None:
     close_data = data.get("close")
     if close_data is None:
@@ -65,7 +77,7 @@ st.subheader("研究问答")
 question = st.text_input("输入你的问题", "请概览四个品种今天的价格表现")
 
 if st.button("生成解读"):
-    snapshots = [latest_snapshot(name) for name in SYMBOLS.keys()]
+    snapshots = [safe_latest_snapshot(name) for name in SYMBOLS.keys()]
     answer = build_energy_commentary(question, snapshots)
     st.markdown("### Agent 输出")
     st.text(answer)
